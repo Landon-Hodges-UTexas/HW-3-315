@@ -48,7 +48,8 @@ sim <- do(N) * cor(Income ~ Price, data = resample(gas))
 ggplot(as.data.frame(sim)) +
   geom_histogram(aes(x=cor), fill="black", alpha=.8) +
   labs(title="Correlations Between Zipcode Income and Gas Prices", x="Sample Correlation Coefficient", y="Frequency") +
-  theme_light()
+  theme_light() +
+  geom_vline(xintercept = 0, col="red")
 ```
 \newpage
 
@@ -93,7 +94,6 @@ With the average price for a gas station with highway access being so high relat
 Lets consider whether Shell charges more than all other non-Shell brands. Once again, we'll use a similar bootstrapping process.
 
 ``` {r gas5}
-N <- 100
 sim <- do(N) * summarise(resample(gas[!gas$Brand=="Shell",]), mean(Price)) # bootstrapping
 thresh <- mean(gas$Price[gas$Brand=="Shell"])
 ggplot(sim) +
@@ -209,8 +209,6 @@ We want to determine if stopping ads in a particular DMA causes a decrease in re
 To answer this question, we will consider the original sample and the variability in our samplping process. create a theoretical sampling distribution of the differences in revenue ratios between the controlled DMAs where ads wer paused and the DMAs where ads ran as usual. This sampling distribution will help account for the variability inherent in our sampling process. Pictured below is the distribution of differences we get from this analysis.
 
 ```{r ebay}
-N <- 10000
-
 ebay <- mutate(ebay, rev_ratio = rev_after/rev_before)
 
 diffs <- do(N) * diffmean(rev_ratio ~ adwords_pause ,data = resample(ebay))
