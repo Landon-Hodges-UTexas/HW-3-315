@@ -15,6 +15,8 @@ nbc <- read.csv("nbc_pilotsurvey.csv")
 ebay <- read.csv("ebay.csv")
 ```
 
+[github repository](https://github.com/Landon-Hodges-UTexas/HW-3-315)
+
 ## Gas Prices Claim A
 
 Let's consider the theory that gas stations charge more if they lack direct competition in sight.
@@ -22,20 +24,18 @@ Let's consider the theory that gas stations charge more if they lack direct comp
 We can evaluate this claim by making a simple sampling distribution of the expected gas prices of non-competing gas stations if their average is similar to the competing gas stations. That distribution looks like the following:
 
 ```{r gas1}
-N <- 100
-# sim1 <- do(10000) * summarise(resample(gas), mean(Price), .by=Competitors)
-# ggplot(sim1) + geom_density(aes(x=mean.Price., fill=Competitors), alpha=.6) + theme_light()
-sim2 <- do(N) * summarise(resample(gas[gas$Competitors=="Y",]), mean(Price)) # bootstrapping
+N <- 10000
+sim <- do(N) * summarise(resample(gas[gas$Competitors=="Y",]), mean(Price)) # bootstrapping
 thresh <- mean(gas$Price[gas$Competitors=="N"])
-ggplot(sim2) +
+ggplot(sim) +
   geom_histogram(aes(x=mean.Price.), fill="black", show.legend = FALSE, alpha=.8) +
   theme_light() +
   labs(title="Bootstrapped Distribution of Competing Prices", x="Average Sample Price", y="Frequency") +
   geom_vline(xintercept = thresh, col="red") # adding a threshold
 ```
-This distribution represents our expectation of the average gas price charged by gas stations that have competition in sight, accounting for the inherent randomness in the sampling procedure. If we assumed that gas stations without visible competition were charging roughly the same amount, we'd expect their average to appear somewhere in the middle of this distribution. In reality, the average is represented here with a red line, falling far from the middle.
+This distribution represents our expectation of the average gas price charged by gas stations that have competition in sight, accounting for the inherent randomness in the sampling procedure. If we assumed that gas stations without visible competition charge roughly the same amount, we'd expect their average to appear somewhere in the middle of this distribution. In reality, the average (red line) falls far from the middle.
 
-As evidenced by the plot, the average prices charged by non-competing gas stations are significantly higher than what we'd expect when accounting for natural variability. With a p value of `r sum(sim2$mean.Price. >= thresh)/10000 # p-value`, it seems likely that there is a correlation between lack of competition and higher prices.
+As evidenced by the plot, the average prices charged by non-competing gas stations are significantly higher than what we'd expect when accounting for natural variability. It seems likely that there is a correlation between lack of competition and higher prices.
 
 ## Gas Prices Claim B
 
