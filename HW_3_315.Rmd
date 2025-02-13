@@ -1,0 +1,234 @@
+---
+title: "HW_3_315"
+author: "Landon Hodges"
+date: "2025-02-07"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, results=FALSE, message=FALSE)
+library(tidyverse)
+library(mosaic)
+gas <- read.csv("GasPrices.csv")
+sclass <- read.csv("sclass.csv")
+nbc <- read.csv("nbc_pilotsurvey.csv")
+ebay <- read.csv("ebay.csv")
+```
+
+## Gas Prices Claim A
+
+Let's consider the theory that gas stations charge more if they lack direct competition in sight.
+
+We can evaluate this claim by making a simple sampling distribution of the expected gas prices of non-competing gas stations if their average is similar to the competing gas stations. That distribution looks like the following:
+
+```{r gas1}
+N <- 100
+# sim1 <- do(10000) * summarise(resample(gas), mean(Price), .by=Competitors)
+# ggplot(sim1) + geom_density(aes(x=mean.Price., fill=Competitors), alpha=.6) + theme_light()
+sim2 <- do(N) * summarise(resample(gas[gas$Competitors=="Y",]), mean(Price)) # bootstrapping
+thresh <- mean(gas$Price[gas$Competitors=="N"])
+ggplot(sim2) +
+  geom_histogram(aes(x=mean.Price.), fill="black", show.legend = FALSE, alpha=.8) +
+  theme_light() +
+  labs(title="Bootstrapped Distribution of Competing Prices", x="Average Sample Price", y="Frequency") +
+  geom_vline(xintercept = thresh, col="red") # adding a threshold
+```
+This distribution represents our expectation of the average gas price charged by gas stations that have competition in sight, accounting for the inherent randomness in the sampling procedure. If we assumed that gas stations without visible competition were charging roughly the same amount, we'd expect their average to appear somewhere in the middle of this distribution. In reality, the average is represented here with a red line, falling far from the middle.
+
+As evidenced by the plot, the average prices charged by non-competing gas stations are significantly higher than what we'd expect when accounting for natural variability. With a p value of `r sum(sim2$mean.Price. >= thresh)/10000 # p-value`, it seems likely that there is a correlation between lack of competition and higher prices.
+
+## Gas Prices Claim B
+
+Let's evaluate the claim that richer areas have higher gas prices. The original sample indicates a positive correlation between zipcode income and gas prices, with a correlation coefficient of `r round(cor(Income ~ Price, data = gas),3)`.
+
+The following plot demonstrates the distribution of correlation coefficients obtained from bootstrapping the original sample. We can observe that almost every sample is greater than zero, indicating that the positive correlation holds, even after accounting for random variability in the sampling process.
+
+```{r gas2}
+sim <- do(N) * cor(Income ~ Price, data = resample(gas))
+ggplot(as.data.frame(sim)) +
+  geom_histogram(aes(x=cor), fill="black", alpha=.8) +
+  labs(title="Correlations Between Zipcode Income and Gas Prices", x="Sample Correlation Coefficient", y="Frequency") +
+  theme_light()
+```
+\newpage
+
+## Gas Prices 3
+
+Let's consider whether gas stations at stoplights charge more.
+
+``` {r gas3}
+sim <- do(N) * summarise(resample(gas[gas$Stoplight=="N",]), mean(Price)) # bootstrapping
+thresh <- mean(gas$Price[gas$Stoplight=="Y"])
+ggplot(sim) +
+  geom_histogram(aes(x=mean.Price.), fill="black", show.legend = FALSE, alpha=.8) +
+  theme_light() +
+  labs(title="Expected Stoplight Prices", x="Average Sample Price", y="Frequency") +
+  geom_vline(xintercept = thresh, col="red") # adding a threshold
+```
+
+That this distribution of feasible non-stoplight prices being centered around the average stoplight prices indicates that given our sample, we cannot conclude there is a significant difference in price between stoplight gas stations and those without a stoplight.
+
+\newpage
+
+# Gas Prices 4
+
+Lets consider if gas stations with direct highway access charge more. We'll do so using a similar process as is described above.
+
+``` {r gas4}
+sim <- do(N) * summarise(resample(gas[gas$Highway=="N",]), mean(Price)) # bootstrapping
+thresh <- mean(gas$Price[gas$Highway=="Y"])
+ggplot(sim) +
+  geom_histogram(aes(x=mean.Price.), fill="black", show.legend = FALSE, alpha=.8) +
+  theme_light() +
+  labs(title="Bootstrapped Distribution of Highway Prices", x="Average Sample Price", y="Frequency") +
+  geom_vline(xintercept = thresh, col="red") # adding a threshold
+```
+
+With the average price for a gas station with highway access being so high relative to the prices we'd expect from those without, after accounting for sampling variability (not bias!), we can conclude that the prices of these highway gas stations are probably higher on average across the entire population of gas stations.
+
+\newpage
+
+# Gas Prices 5
+
+Lets consider whether Shell charges more than all other non-Shell brands. Once again, we'll use a similar bootstrapping process.
+
+``` {r gas5}
+N <- 100
+sim <- do(N) * summarise(resample(gas[!gas$Brand=="Shell",]), mean(Price)) # bootstrapping
+thresh <- mean(gas$Price[gas$Brand=="Shell"])
+ggplot(sim) +
+  geom_histogram(aes(x=mean.Price.), fill="black", show.legend = FALSE, alpha=.8) +
+  theme_light() +
+  labs(title="Bootstrapped Distribution of Non-Shell Prices", x="Average Sample Price", y="Frequency") +
+  geom_vline(xintercept = thresh, col="red") # adding a threshold
+```
+
+With the average Shell price being so high relative to the prices we'd expect from no-shell brands after accounting for sampling variability (not bias!), we can conclude that Shell prices are probably higher on average across the entire population of gas stations.
+
+\newpage
+
+# Cars 1
+
+Let's approximate the mileage of s-class automobiles from 2011 with 63 AMG trim. Given that our sample is random, we need to account for the uncertainty that arises from this randomness. We'll do this by once again building a sampling distribution of mean mileage from our original sample. 
+
+``` {r cars1}
+subset <- sclass[sclass$year == 2011 & sclass$trim == "63 AMG",]
+sim <- do(N) * summarise(resample(subset), avg = mean(mileage))
+ggplot(sim) +
+  geom_histogram(aes(x=avg), fill="black", alpha=.8) +
+  theme_light() +
+  labs(title = "Bootstrapped Distribution of Mean Mileage for 2011 63 AMG S-Class", x = "Mean Mileage (miles)", y = "Frequency")
+
+lower <- confint(sim)[1,2]
+upper <- confint(sim)[1,3]
+```
+
+This histogram represents the relative liklihood of each average being the true average, given our original sample. From this distribution, we can say with 95% confidence that the true average mileage of these particular automobiles lies between `r round(lower, -2)` and `r round(upper, -2)` miles.
+
+\newpage
+
+# Cars 2
+
+Let's estimate the proportion of 2014 s-class automobiles with a 550 trim that are painted black. We'll use the same method described above.
+
+``` {r cars2}
+subset <- sclass[sclass$year == 2014 & sclass$trim == "550",]
+sim <- do(N) * summarise(resample(subset), propBlack = sum(color=="Black")/length(color))
+ggplot(sim) +
+  geom_histogram(aes(x=propBlack), fill="black", alpha=.8) +
+  theme_light() + 
+  labs(title = "Distribution of Proportion of 2014 550 S-Class Cars Painted Black", x = "Proportion Painted Black", y = "Frequency")
+
+lower <- confint(sim)[1,2]
+upper <- confint(sim)[1,3]
+```
+
+This histogrom is conceptually identical to the one above, except that it represents the proportion of cars that fit the above criteria that are painted black. Using this distribution, we can say with 95% certainty that the true proportion lies between`r round(lower, 3)` and `r round(upper, 3)`
+
+\newpage
+
+# NBC 1
+
+We want to determine if, between the TV shows "Living with Ed" and "My Name is Earl", one inspires a happier response in viewers than the other. To do so, we'll consider a theoretical sampling distribution of the difference in mean happiness responses. This will account for the randomness of our sampling process. If we see that in nearly all theoretical samples, there is a difference in happiness responses, we can say that there is evidence of a difference. Otherwise, there isn't strong evidence in either direction.
+
+``` {r nbc1}
+edAndEarl <- nbc[nbc$Show == "Living with Ed" | nbc$Show == "My Name is Earl",]
+happyDiff <- do(N) * diffprop(Q1_Happy ~ Show ,data = resample(edAndEarl))
+ggplot(happyDiff) +
+  geom_histogram(aes(x=diffprop), fill="black", alpha=.8) +
+  theme_light() +
+  labs(title = "Distribution of Happiness Difference between 'Living with Ed' and 'My Name is Earl'", x = "Difference in Mean Happiness", y = "Frequency") +
+  geom_vline(xintercept = 0, col="red") # highlighting zero
+```
+
+Observing that about 60% of our theoretical samples indicate a positive difference between the two shows and 40% indicate a negative difference, we can't assert that one show inspires more happiness than the other, as the true difference between them is so small it is obfuscated by the natural uncertainty of our sampling process.
+
+\newpage
+
+# NBC 2
+
+Let's determine is there evidence that either Biggest Loser or The Apprentice: Los Angeles annoys viewers more than the other. We'll use an identical process to the one outlined above.
+
+``` {r nbc2}
+biggestLoserAngeles <- nbc[nbc$Show == "The Biggest Loser" | nbc$Show == "The Apprentice: Los Angeles",]
+annoyedDiff <- do(N) * diffprop(Q1_Annoyed ~ Show ,data = resample(biggestLoserAngeles))
+ggplot(annoyedDiff) +
+  geom_histogram(aes(x=diffprop), fill="black", alpha=.8) +
+  theme_light() +
+  labs(title = "Distribution of Annoyance Difference between the Shows", x = "Difference in Annoyance Proportion", y = "Frequency") +
+  geom_vline(xintercept = 0, col="red") # highlighting zero
+```
+
+Given that the distribution of sample differences is biased positive, we can say that there may be evidence that "The Apprentice: Los Angeles" is the more annoying show based on our original sample, but ultimately, the proportion of theoretical samples in which The Biggest Loser is the more annoying show is not negligible, so we cannot conclude definitely that there is any evidence either way.
+
+\newpage
+
+# NBC 3
+
+Let's determine how confusing the show dancing with the stars is. We'll create a confidence interval by bootstrapping the original sample.
+
+``` {r nbc3}
+dance <- nbc[nbc$Show=="Dancing with the Stars",]
+confusionProp <- do(N) * summarise(prop = sum(Q2_Confusing >= 4)/length(Q2_Confusing), .data = resample(dance))
+lower <- confint(confusionProp)[1,2]
+upper <- confint(confusionProp)[1,3]
+```
+
+Forgoing the familiar graph of the distribution, we can say with 95% confidence that the true proportion of viewers who find the show confusing is between `r round(lower,3)` and `r round(upper,3)`.
+
+\newpage
+
+# Ebay 1
+
+## Question
+
+We want to determine if stopping ads in a particular DMA causes a decrease in revenue from that district.
+
+## Approach
+
+To answer this question, we will consider the original sample and the variability in our samplping process. create a theoretical sampling distribution of the differences in revenue ratios between the controlled DMAs where ads wer paused and the DMAs where ads ran as usual. This sampling distribution will help account for the variability inherent in our sampling process. Pictured below is the distribution of differences we get from this analysis.
+
+```{r ebay}
+N <- 10000
+
+ebay <- mutate(ebay, rev_ratio = rev_after/rev_before)
+
+diffs <- do(N) * diffmean(rev_ratio ~ adwords_pause ,data = resample(ebay))
+
+ggplot(diffs) +
+  geom_histogram(aes(x=diffmean), fill="black", alpha=.8) +
+  theme_light() + labs(title = "Bootstrapped Distribution of Revenue Ratio Differences (Ads Paused vs. Running)", x = "Difference in Revenue Ratio", y = "Frequency") +
+  geom_vline(xintercept = 0, col="red") # highlighting zero
+
+lower <- confint(diffs, i=99)[1,2]
+upper <- confint(diffs, i=99)[1,3]
+p <- sum(diffs>=0)/length(diffs$diffmean) # Sort of a p-value but not really
+```
+
+## Results
+
+The results from this analysis are tantalizingly significant. Given that we got our random sample, there is only a `r p*100`% chance that there is no difference, from our perspective. Furthermore, we can be 99% confident that the difference in revenue ratios is between `r round(lower,3)*100`% and `r round(upper,3)*100`%.
+
+## Conclusion
+
+In my opinion, there is a reduction in web traffic when ads are stopped in a particular region. Furthermore, I'm 99% confident that this reduction in revenue is between `r -round(lower,3)*100`% and `r -round(upper,3)*100`%. 
